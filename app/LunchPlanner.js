@@ -88,12 +88,25 @@ export default function LunchPlanner() {
 
   async function loadMenus() {
     const { data } = await supabase.from("menus").select("*").eq("week_key", weekKey);
-    if (data) {
-      const h = data.find(m => m.restaurant === "hanaskog");
-      const ar = data.find(m => m.restaurant === "araslof");
-      if (h) setHanaskogMenu(h.data);
-      if (ar) setAraslofMenu(ar.data);
-    }
+    const h = data?.find(m => m.restaurant === "hanaskog");
+    const ar = data?.find(m => m.restaurant === "araslof");
+    if (h) setHanaskogMenu(h.data);
+    if (ar) setAraslofMenu(ar.data);
+    else autoFetchAraslof();
+  }
+
+  async function autoFetchAraslof() {
+    try {
+      const resp = await fetch("/api/araslof-menu");
+      const data = await resp.json();
+      if (!data.error) {
+        setAraslofMenu(data);
+        await supabase.from("menus").upsert(
+          { week_key: weekKey, restaurant: "araslof", data, updated_at: new Date().toISOString() },
+          { onConflict: "week_key,restaurant" }
+        );
+      }
+    } catch {}
   }
 
   const showToast = (msg, type = "ok") => {
